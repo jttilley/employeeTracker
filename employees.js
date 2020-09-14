@@ -75,6 +75,10 @@ function findEmpId(empRes, employee) {
   return findValue(empRes,"name",employee,"id")
 }
 
+function findDeptId(deptRes, department) {
+  return findValue(deptRes,"name",department,"id")
+}
+
 
 // SQL connection functions
 connection.connect(function(err) {
@@ -491,35 +495,47 @@ function updateEmpRole() {
   })
 }
 
-function delEmps() {
-  connection.query(empNamesQuery, function(err, res) {
-    if (err) throw err;
+function deleteFromDB(id, tableName, choiceList) {
+  inquirer.prompt([
+    {
+      name: "removed",
+      type: "list",
+      message: `Which ${tableName} would you like to remove?`,
+      choices: choiceList
+    }
+  ]).then(({ removed }) => {
+    console.log('id: ', id);
+    let query = `Delete FROM ${tableName} WHERE ?`;
+    connection.query(query,[{ id: id }], function(err, res) {
+      if (err) throw err;
 
-    inquirer.prompt([
-      {
-        name: "employee",
-        type: "list",
-        message: "Which employee would you like to remove?",
-        choices: listEmployees(res)
-      }
-    ]).then(({ employee }) => {
-      const empId = findEmpId(res,employee);
-      console.log('empId: ', empId);
-      let query = `Delete FROM employee WHERE ?`;
-      connection.query(query,[{ id: empId }], function(err, res) {
-        if (err) throw err;
-
-        console.log(`${employee} has been successfully removed!`);
-        start();
-      })
+      console.log(`${removed} has been successfully removed!`);
+      start();
     })
   })
 }
 
-function delDepts() {
-
+function delEmps() {
+  connection.query(empNamesQuery, function(err, res) {
+    if (err) throw err;
+    
+    deleteFromDB(findEmpId(res,employee),"employee",listEmployees(res));
+  })
 }
 
-function delRoles() {
+function delDepts() {
+  connection.query(deptQuery, function(err, res) {
+    if (err) throw err;
 
+    deleteFromDB(findDeptId(res,department),"department",listDepartments(res));
+  })
+}
+
+
+function delRoles() {
+  connection.query(rolesQuery, function(err, res) {
+    if (err) throw err;
+
+    deleteFromDB(findRoleId(res,role),"role",listRoles(res));
+  })
 }
