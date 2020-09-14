@@ -28,7 +28,7 @@ var connection = mysql.createConnection({
 function getList(res, objElName)
 {
   const arr = [];
-  console.log('res: ', res);
+  // console.log('res: ', res);
   res.forEach(e => {
     arr.push(e[objElName]);
   });
@@ -49,12 +49,12 @@ function listEmployees(empRes) {
 
 // functions to find ids for updates
 function findValue(res, srchEl, value, returnEl) {
-  console.log('returnEl: ', returnEl);
-  console.log('value: ', value);
-  console.log('srchEl: ', srchEl);
+  // console.log('returnEl: ', returnEl);
+  // console.log('value: ', value);
+  // console.log('srchEl: ', srchEl);
 
   for(let i = 0; i < res.length; i++) {
-    console.log('res[i][srchEl]: ', res[i][srchEl]);
+    // console.log('res[i][srchEl]: ', res[i][srchEl]);
     //for strings
     if (isNaN(res[i][srchEl])) {
       if (res[i][srchEl].match(value)) return res[i][returnEl];
@@ -220,7 +220,7 @@ function addRoles() {
         message: "What is the salary for this role?",
         validate: (ans) => {
           const chk = ans.match(/\d+\.?\d*/)
-          console.log('chk: ', chk);
+          // console.log('chk: ', chk);
           if (chk[0] === ans){
             return true;
           } 
@@ -257,11 +257,11 @@ async function badaddEmp() {
   try {
     const roleRes = await connection.query(rolesQuery);
     
-    console.log('roleRes.title: ', roleRes.title);
+    // console.log('roleRes.title: ', roleRes.title);
     
     const roles = listRoles(roleRes);
   
-    console.log('roles: ', roles);
+    // console.log('roles: ', roles);
   
       // get employee info
     const { fName, lName, role } = await inquirer.prompt([
@@ -299,10 +299,10 @@ async function badaddEmp() {
       }
     }
   
-    console.log('fName: ', fName);
-    console.log('lName: ', lName);
-    console.log('roleId: ', roleId);
-    console.log('managerId: ', managerId);
+    // console.log('fName: ', fName);
+    // console.log('lName: ', lName);
+    // console.log('roleId: ', roleId);
+    // console.log('managerId: ', managerId);
     
     res = await connection.query("INSERT INTO employee SET ?",
       {
@@ -328,7 +328,7 @@ function addEmp() {
 
     const roles = listRoles(roleRes);
 
-    console.log('roles: ', roles);
+    // console.log('roles: ', roles);
 
     // get employee info
     inquirer.prompt([
@@ -355,8 +355,8 @@ function addEmp() {
       connection.query(query, function(err, res) {
         if (err) throw err;
         
-        console.log('role: ', role);
-        console.log('roleRes: ', roleRes);
+        // console.log('role: ', role);
+        // console.log('roleRes: ', roleRes);
         
         // get role id
         const roleId = findRoleId(roleRes,role);
@@ -376,10 +376,10 @@ function addEmp() {
           }
         }
   
-        console.log('fName: ', fName);
-        console.log('lName: ', lName);
-        console.log('roleId: ', roleId);
-        console.log('managerId: ', managerId);
+        // console.log('fName: ', fName);
+        // console.log('lName: ', lName);
+        // console.log('roleId: ', roleId);
+        // console.log('managerId: ', managerId);
         
         connection.query("INSERT INTO employee SET ?",
           {
@@ -449,7 +449,7 @@ function updateEmpRole() {
     if (err) throw err;
 
     const employees = listEmployees(empRes);
-    console.log('employees: ', employees);
+    // console.log('employees: ', employees);
 
     connection.query(rolesQuery,function(err, roleRes) {
       if (err) throw err;
@@ -495,47 +495,40 @@ function updateEmpRole() {
   })
 }
 
-function deleteFromDB(id, tableName, choiceList) {
-  inquirer.prompt([
-    {
-      name: "removed",
-      type: "list",
-      message: `Which ${tableName} would you like to remove?`,
-      choices: choiceList
-    }
-  ]).then(({ removed }) => {
-    console.log('id: ', id);
-    let query = `Delete FROM ${tableName} WHERE ?`;
-    connection.query(query,[{ id: id }], function(err, res) {
-      if (err) throw err;
+function deleteFromDB(query, idFunctionName, tableName, listFunctionName) {
+  connection.query(query, function(err, res) {
+    if (err) throw err;
+    const choiceList = eval(`${listFunctionName}(res)`);
 
-      console.log(`${removed} has been successfully removed!`);
-      start();
+    inquirer.prompt([
+      {
+        name: "removed",
+        type: "list",
+        message: `Which ${tableName} would you like to remove?`,
+        choices: choiceList
+      }
+    ]).then(({ removed }) => {
+      const id = eval(`${idFunctionName}(res, removed)`);
+      console.log('id: ', id);
+      let query = `Delete FROM ${tableName} WHERE ?`;
+      connection.query(query,[{ id: id }], function(err, res) {
+        if (err) throw err;
+
+        console.log(`${removed} has been successfully removed!`);
+        start();
+      })
     })
   })
 }
 
 function delEmps() {
-  connection.query(empNamesQuery, function(err, res) {
-    if (err) throw err;
-    
-    deleteFromDB(findEmpId(res,employee),"employee",listEmployees(res));
-  })
+  deleteFromDB(empNamesQuery, "findEmpId", "employee", "listEmployees");
 }
 
 function delDepts() {
-  connection.query(deptQuery, function(err, res) {
-    if (err) throw err;
-
-    deleteFromDB(findDeptId(res,department),"department",listDepartments(res));
-  })
+  deleteFromDB(deptQuery, "findDeptId", "department", "listDepartments");  
 }
 
-
 function delRoles() {
-  connection.query(rolesQuery, function(err, res) {
-    if (err) throw err;
-
-    deleteFromDB(findRoleId(res,role),"role",listRoles(res));
-  })
+  deleteFromDB(rolesQuery, "findRoleId", "role", "listRoles");
 }
