@@ -492,7 +492,28 @@ function updateEmpRole() {
 }
 
 function delEmps() {
+  connection.query(empNamesQuery, function(err, res) {
+    if (err) throw err;
 
+    inquirer.prompt([
+      {
+        name: "employee",
+        type: "list",
+        message: "Which employee would you like to remove?",
+        choices: listEmployees(res)
+      }
+    ]).then(({ employee }) => {
+      const empId = findEmpId(res,employee);
+      console.log('empId: ', empId);
+      let query = `Delete FROM employee WHERE ?`;
+      connection.query(query,[{ id: empId }], function(err, res) {
+        if (err) throw err;
+
+        console.log(`${employee} has been successfully removed!`);
+        start();
+      })
+    })
+  })
 }
 
 function delDepts() {
