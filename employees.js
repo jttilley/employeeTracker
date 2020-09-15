@@ -6,6 +6,9 @@ const cTable = require("console.table");
 const deptQuery = `SELECT * FROM department`;
 const rolesQuery = `SELECT * FROM role`;
 const empNamesQuery = `SELECT id, CONCAT(employee.first_name, " ", employee.last_Name) AS name, role_id, manager_id FROM employee`;
+const viewEmployeesQuery = `SELECT CONCAT(employee.first_name, " ", employee.last_name) AS name, role.title, department.name AS department, role.salary, CONCAT(manager.first_name, " ", manager.last_name) as manager
+FROM employee employee LEFT JOIN employee manager ON (employee.manager_id = manager.id) 
+LEFT JOIN role ON (employee.role_id = role.id) LEFT JOIN department ON (role.department_id = department.id)`
 
 
 
@@ -117,20 +120,20 @@ function start() {
       type: "list",
       message: "What would you like to do?",
       choices: [
-                "View Employees",
-                "View Departments",
-                "View Roles",
-                "Add Employees",
-                "Add Roles",
-                "Add Department",
-                "Update Employee Roles",
-                "Update Employee Managers",
-                "View Employees by Manager",
-                "Delete Departments",
-                "Delete Roles",
-                "Delete Emplyoees",
-                "View Department Budget Used",
-                "Exit"]
+        "View Employees",
+        "View Employees by Manager",
+        "View Departments",
+        "View Roles",
+        "View Department Budget Used",
+        "Add Employees",
+        "Add Roles",
+        "Add Department",
+        "Update Employee Roles",
+        "Update Employee Managers",
+        "Delete Departments",
+        "Delete Roles",
+        "Delete Emplyoees",
+        "Exit"]
     },
   ]).then(({ action }) => {
     switch (action) {
@@ -219,8 +222,8 @@ function addRoles() {
         type: "input",
         message: "What is the salary for this role?",
         validate: (ans) => {
-          const chk = ans.match(/\d+\.?\d*/)
-          // console.log('chk: ', chk);
+          const chk = ans.match(/\d+\.?\d*/); //make sure it's a number
+          
           if (chk[0] === ans){
             return true;
           } 
@@ -252,89 +255,19 @@ function addRoles() {
   });
 }
 
-async function badaddEmp() {
-  // get roles
-  try {
-    const roleRes = await connection.query(rolesQuery);
-    
-    // console.log('roleRes.title: ', roleRes.title);
-    
-    const roles = listRoles(roleRes);
-  
-    // console.log('roles: ', roles);
-  
-      // get employee info
-    const { fName, lName, role } = await inquirer.prompt([
-      {
-        name: "fName",
-        type: "input",
-        message: "First Name:"
-      },
-      {
-        name: "lName",
-        type: "input",
-        message: "Last Name:"
-      },
-      {
-        name: "role",
-        type: "list",
-        message: "role:",
-        choices: roles
-      }
-    ]);
-  
-    let res = await connection.query(empNamesQuery);
-
-    // get role id
-    const roleId = findRoleId(roleRes,role);
-    
-    // get manager id
-    // checks role table for a role_id matching the roleId and returns that department id
-    const deptId = findValue(roleRes,"role_id",roleId,"department_id");
-    // checks the role table for a title that inlcudes "Lead" and the department id matches deptId then
-    // uses that roles id to check the employee table for the matching role_id and returns the employee id
-    for (let i = 0; i < roleRes.length; i++) {
-      if (roleRes[i].title.match("Lead") && roleRes[i].department_id === deptId) {
-        const managerId = findValue(res,"role_id",roleRes[i].id,"id");
-      }
-    }
-  
-    // console.log('fName: ', fName);
-    // console.log('lName: ', lName);
-    // console.log('roleId: ', roleId);
-    // console.log('managerId: ', managerId);
-    
-    res = await connection.query("INSERT INTO employee SET ?",
-      {
-        first_name: fName,
-        last_name: lName,
-        role_id: roleId, 
-        manager_id: managerId || null
-      }
-    );
-
-    console.log("Employee was successfully added!")
-    start();
-  } catch (err) {
-    throw err;
-  }
-}
-
 function findManagerId(roleRes,roleId,empRes) {
   // get manager id
   // checks role table for a role_id matching the roleId and returns that department id
   const deptId = findValue(roleRes,"id",roleId,"department_id");
-  console.log('deptId: ', deptId);
 
   // checks the role table for a title that inlcudes "Lead" and the department id matches deptId then
   // uses that roles id to check the employee table for the matching role_id and returns the employee id
-  let managerId = null;
-
   for (let i = 0; i < roleRes.length; i++) {
     if (roleRes[i].title.match("Lead") && roleRes[i].department_id === deptId) {
       return findValue(empRes,"role_id",roleRes[i].id,"id");
     }
   }
+  return null;
 }
 
 function addEmp() {
@@ -343,8 +276,6 @@ function addEmp() {
     if (err) throw err;
 
     const roles = listRoles(roleRes);
-
-    // console.log('roles: ', roles);
 
     // get employee info
     inquirer.prompt([
@@ -366,13 +297,9 @@ function addEmp() {
       }
 
     ]).then( ({ fName, lName, role }) => {
-
       query = "SELECT * FROM employee"
       connection.query(query, function(err, res) {
         if (err) throw err;
-        
-        // console.log('role: ', role);
-        // console.log('roleRes: ', roleRes);
         
         // get role id
         const roleId = findRoleId(roleRes,role);
@@ -381,11 +308,6 @@ function addEmp() {
         // get manager id
         let managerId = findManagerId(roleRes, roleId, res);
   
-        // console.log('fName: ', fName);
-        // console.log('lName: ', lName);
-        // console.log('roleId: ', roleId);
-        // console.log('managerId: ', managerId);
-        
         connection.query("INSERT INTO employee SET ?",
           {
             first_name: fName,
@@ -405,47 +327,85 @@ function addEmp() {
   });
 }
 
-function viewDept() {
-  let query = "SELECT * FROM department";
+function viewQuery(query) {
   connection.query(query, function(err, res) {
     if (err) throw err;
     console.table(res);
     start();
   });
+}
+
+
+function viewDept() {
+  let query = "SELECT * FROM department";
+  viewQuery(query);
 }
 
 function viewRoles() {
   let query = `SELECT role.title, role.salary, department.name AS "department"
   FROM role LEFT JOIN department ON (role.department_id = department.id)`
-  connection.query(query, function(err, res) {
-    if (err) throw err;
-    console.table(res);
-    start();
-  });
+  viewQuery(query);
 }
 
 function viewEmps() {
-  let query = `SELECT CONCAT(employee.first_name, " ", employee.last_name) AS name, role.title, department.name AS department, role.salary, 
-	  CONCAT(manager.first_name, " ", manager.last_name) as manager
-	  FROM employee employee LEFT JOIN employee manager ON (employee.manager_id = manager.id) 
-    LEFT JOIN role ON (employee.role_id = role.id) LEFT JOIN department ON (role.department_id = department.id)`
-  connection.query(query, function(err, res) {
-    if (err) throw err;
-    console.table(res);
-    start();
-  });
-}
-
-function viewBudget() {
-
+  viewQuery(viewEmployeesQuery);
 }
 
 function viewEmpByManeger() {
+  let query = viewEmployeesQuery + " ORDER BY manager, name"
+  viewQuery(query);
+}
 
+function viewBudget() {
+  let query = "SELECT role.salary FROM employee LEFT JOIN role ON (employee.role_id = role.id)";
+  connection.query(query, function(err, res) {
+    if (err) throw err;
+
+    const salaries = getList(res,"salary");
+
+    budget = salaries.reduce((a,b) => a + b, 0);
+
+    console.log(`Total budget spent: $${budget}`);
+    start();
+  })
 }
 
 function updateEmpManagers() {
+  connection.query(empNamesQuery,function(err, empRes) {
+    if (err) throw err;
+    
+    const employees = listEmployees(empRes);
 
+    inquirer.prompt([
+      {
+        name: "employee",
+        type: "list",
+        message: "Who's manager do you want to update?",
+        choices: employees
+      }
+    ]).then(({ employee }) => {
+      // get roles for finding the manager id
+      connection.query(rolesQuery, function(err, roleRes) {
+        if (err) throw err;
+        const empId = findEmpId( empRes, employee);
+        const roleId = findValue(empRes,"id",empId,"role_id");
+        const managerId = findManagerId(roleRes,roleId,empRes);
+
+        // update manager id
+        let query = `UPDATE employee Set ? WHERE ?`
+        connection.query(query,[
+          { manager_id: managerId },
+          { id: empId }
+        ],
+        function(err, res) {
+          if (err) throw err;
+          
+          console.log(`${employee}'s manager has been updated to their departments current manager!`);
+          start();
+        })
+      })
+    })
+  });
 }
 
 function updateEmpRole() {
@@ -487,6 +447,7 @@ function updateEmpRole() {
         // find manager id
         let managerId = findManagerId(roleRes, roleId, empRes);
 
+        // update role id and manager id
         let query = `UPDATE employee Set ? WHERE ?`
         connection.query(query,[
           { role_id: roleId, manager_id: managerId },
@@ -517,7 +478,7 @@ function deleteFromDB(query, idFunctionName, tableName, listFunctionName) {
       }
     ]).then(({ removed }) => {
       const id = eval(`${idFunctionName}(res, removed)`);
-      console.log('id: ', id);
+      
       let query = `Delete FROM ${tableName} WHERE ?`;
       connection.query(query,[{ id: id }], function(err, res) {
         if (err) throw err;
