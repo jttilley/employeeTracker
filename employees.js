@@ -320,6 +320,22 @@ async function badaddEmp() {
   }
 }
 
+function findManagerId(roleRes,roleId,empRes) {
+  // get manager id
+  // checks role table for a role_id matching the roleId and returns that department id
+  const deptId = findValue(roleRes,"id",roleId,"department_id");
+  console.log('deptId: ', deptId);
+
+  // checks the role table for a title that inlcudes "Lead" and the department id matches deptId then
+  // uses that roles id to check the employee table for the matching role_id and returns the employee id
+  let managerId = null;
+
+  for (let i = 0; i < roleRes.length; i++) {
+    if (roleRes[i].title.match("Lead") && roleRes[i].department_id === deptId) {
+      return findValue(empRes,"role_id",roleRes[i].id,"id");
+    }
+  }
+}
 
 function addEmp() {
   // get roles
@@ -363,18 +379,7 @@ function addEmp() {
         console.log('roleId: ', roleId);
 
         // get manager id
-        // checks role table for a role_id matching the roleId and returns that department id
-        const deptId = findValue(roleRes,"id",roleId,"department_id");
-        console.log('deptId: ', deptId);
-        // checks the role table for a title that inlcudes "Lead" and the department id matches deptId then
-        // uses that roles id to check the employee table for the matching role_id and returns the employee id
-        let managerId = null;
-
-        for (let i = 0; i < roleRes.length; i++) {
-          if (roleRes[i].title.match("Lead") && roleRes[i].department_id === deptId) {
-            managerId = findValue(res,"role_id",roleRes[i].id,"id");
-          }
-        }
+        let managerId = findManagerId(roleRes, roleId, res);
   
         // console.log('fName: ', fName);
         // console.log('lName: ', lName);
@@ -474,14 +479,17 @@ function updateEmpRole() {
         if (role === "Cancel & Go back") return start();
 
         // find employee id for reference
-        let empId = findEmpId(empRes, employees);
-
+        let empId = findEmpId(empRes, employee);
+        
         // find role id
         let roleId = findRoleId(roleRes, role);
+        
+        // find manager id
+        let managerId = findManagerId(roleRes, roleId, empRes);
 
         let query = `UPDATE employee Set ? WHERE ?`
         connection.query(query,[
-          { role_id: roleId },
+          { role_id: roleId, manager_id: managerId },
           { id: empId }
         ],
         function(err, res) {
